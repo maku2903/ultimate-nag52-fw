@@ -27,6 +27,7 @@
 #define RLI_SYS_USAGE       0x23 // Brain usage
 #define RLI_TCC_PROGRAM     0x24 // TCC info
 #define RLI_PRESSURES       0x25
+#define RLI_MAP_LIVE_CONTEXT 0x26
 #define RLI_SHIFT_LIVE      0x27
 #define RLI_FW_HEADER       0x28
 
@@ -185,6 +186,48 @@ typedef struct {
     int16_t acceleration_input;
 } __attribute__ ((packed)) DRIVING_DYNAMIC_INFO;
 
+#define MAP_LIVE_CONTEXT_VALID_GEAR              (1u << 0)
+#define MAP_LIVE_CONTEXT_VALID_PROFILE           (1u << 1)
+#define MAP_LIVE_CONTEXT_VALID_PEDAL             (1u << 3)
+#define MAP_LIVE_CONTEXT_VALID_INPUT_RPM         (1u << 4)
+#define MAP_LIVE_CONTEXT_VALID_ENGINE_RPM        (1u << 5)
+#define MAP_LIVE_CONTEXT_VALID_OUTPUT_RPM        (1u << 6)
+#define MAP_LIVE_CONTEXT_VALID_ATF_TEMP          (1u << 7)
+#define MAP_LIVE_CONTEXT_VALID_TCC_STATE         (1u << 8)
+#define MAP_LIVE_CONTEXT_VALID_TCC_REQUEST_PRESSURE (1u << 9)
+#define MAP_LIVE_CONTEXT_VALID_TCC_TARGET_PRESSURE  (1u << 10)
+#define MAP_LIVE_CONTEXT_VALID_TCC_CURRENT_PRESSURE (1u << 11)
+#define MAP_LIVE_CONTEXT_VALID_TCC_LOAD          (1u << 12)
+#define MAP_LIVE_CONTEXT_VALID_SHIFT_STATE       (1u << 13)
+#define MAP_LIVE_CONTEXT_VALID_SHIFT_CIRCUITS    (1u << 14)
+
+typedef struct {
+    uint32_t valid_flags;
+
+    uint8_t actual_gear;
+    uint8_t target_gear;
+    uint8_t profile;
+
+    uint8_t pedal_pos_raw;      // 0..250
+    uint8_t pedal_pos_percent;  // 0..100
+    uint16_t input_rpm;
+    uint16_t engine_rpm;
+    uint16_t output_rpm;
+    int16_t atf_temp_c;
+
+    uint16_t tcc_target_pressure_mbar;
+    uint16_t tcc_current_pressure_mbar;
+    uint16_t tcc_requested_pressure_mbar;
+    int16_t tcc_load_percent;
+    uint8_t tcc_target_state;
+    uint8_t tcc_current_state;
+
+    uint8_t active_shift_circuits;
+    uint8_t shift_active;
+    uint8_t shift_phase;
+} __attribute__ ((packed)) MAP_LIVE_CONTEXT;
+static_assert(sizeof(MAP_LIVE_CONTEXT) == 30, "MAP_LIVE_CONTEXT wire payload must remain 30 bytes");
+
 DATA_GEARBOX_SENSORS get_gearbox_sensors(Gearbox* g);
 DATA_SOLENOIDS get_solenoid_data(Gearbox* gb_ptr);
 DATA_PRESSURES get_pressure_data(Gearbox* gb_ptr);
@@ -192,6 +235,7 @@ DATA_CANBUS_RX get_rx_can_data(EgsBaseCan* can_layer);
 DATA_SYS_USAGE get_sys_usage(void);
 SHIFT_LIVE_INFO get_shift_live_Data(const EgsBaseCan* can_layer, Gearbox* g);
 DATA_TCC_PROGRAM get_tcc_program_data(Gearbox* gb_ptr);
+MAP_LIVE_CONTEXT get_map_live_context(Gearbox* g);
 
 // Read and write TCU Module settings
 

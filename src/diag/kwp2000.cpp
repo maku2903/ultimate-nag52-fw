@@ -591,6 +591,9 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
     } else if (args[0] == RLI_PRESSURES) {
         DATA_PRESSURES r = get_pressure_data(this->gearbox_ptr);
         make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_PRESSURES, (uint8_t*)&r, sizeof(DATA_PRESSURES));
+    } else if (args[0] == RLI_MAP_LIVE_CONTEXT) {
+        MAP_LIVE_CONTEXT r = get_map_live_context(this->gearbox_ptr);
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_MAP_LIVE_CONTEXT, (uint8_t*)&r, sizeof(MAP_LIVE_CONTEXT));
     } else if (args[0] == RLI_CLUTCH_SPEEDS) {
         ClutchSpeeds r = gearbox->diag_get_clutch_speeds();
         make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_CLUTCH_SPEEDS, (uint8_t*)&r, sizeof(ClutchSpeeds));

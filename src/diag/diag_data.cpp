@@ -111,6 +111,79 @@ DATA_TCC_PROGRAM get_tcc_program_data(Gearbox* gb_ptr) {
     return ret;
 }
 
+MAP_LIVE_CONTEXT get_map_live_context(Gearbox* g) {
+    MAP_LIVE_CONTEXT ret = {};
+    memset(&ret, 0xFF, sizeof(ret));
+    ret.valid_flags = 0;
+
+    if (g == nullptr) {
+        return ret;
+    }
+
+    uint8_t target_actual = g->get_targ_curr_gear();
+    ret.target_gear = (target_actual >> 4) & 0x0F;
+    ret.actual_gear = target_actual & 0x0F;
+    if (ret.target_gear != 0x0F && ret.actual_gear != 0x0F) {
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_GEAR;
+    }
+
+    ret.profile = g->get_profile_id();
+    if (ret.profile != UINT8_MAX) {
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_PROFILE;
+    }
+
+    ret.pedal_pos_raw = g->sensor_data.pedal_pos;
+    if (ret.pedal_pos_raw != UINT8_MAX) {
+        ret.pedal_pos_percent = MIN((uint8_t)100u, (uint8_t)(((uint16_t)ret.pedal_pos_raw * 100u) / 250u));
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_PEDAL;
+    }
+
+    ret.input_rpm = g->sensor_data.input_rpm;
+    if (ret.input_rpm != UINT16_MAX) {
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_INPUT_RPM;
+    }
+
+    ret.engine_rpm = g->sensor_data.engine_rpm;
+    if (ret.engine_rpm != UINT16_MAX) {
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_ENGINE_RPM;
+    }
+
+    ret.output_rpm = g->sensor_data.output_rpm;
+    if (ret.output_rpm != UINT16_MAX) {
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_OUTPUT_RPM;
+    }
+
+    ret.atf_temp_c = g->sensor_data.atf_temp;
+    if (ret.atf_temp_c != INT16_MAX) {
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_ATF_TEMP;
+    }
+
+    ret.shift_active = g->isShifting() ? 1 : 0;
+    ret.shift_phase = g->algo_feedback.shift_phase;
+    ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_SHIFT_STATE;
+
+    if (g->pressure_mgr != nullptr) {
+        ret.tcc_requested_pressure_mbar = g->pressure_mgr->get_targ_tcc_pressure();
+        ret.active_shift_circuits = g->pressure_mgr->get_active_shift_circuits();
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_TCC_REQUEST_PRESSURE;
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_SHIFT_CIRCUITS;
+    }
+
+    if (g->tcc != nullptr) {
+        ret.tcc_target_pressure_mbar = g->tcc->get_target_pressure();
+        ret.tcc_current_pressure_mbar = g->tcc->get_current_pressure();
+        ret.tcc_load_percent = g->tcc->get_engine_load_percent();
+        ret.tcc_target_state = g->tcc->get_target_state();
+        ret.tcc_current_state = g->tcc->get_current_state();
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_TCC_STATE;
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_TCC_TARGET_PRESSURE;
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_TCC_CURRENT_PRESSURE;
+        ret.valid_flags |= MAP_LIVE_CONTEXT_VALID_TCC_LOAD;
+    }
+
+    return ret;
+}
+
 DATA_CANBUS_RX get_rx_can_data(EgsBaseCan* can_layer) {
     DATA_CANBUS_RX ret = {};
     if (can_layer == nullptr || gearbox == nullptr) {
