@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include "lookuptable.h"
 
+#ifndef MAP_LOOKUP_TRACE_ENABLED
+#define MAP_LOOKUP_TRACE_ENABLED 1
+#endif
+
 static const uint8_t LOOKUP_TRACE_SLOT_COUNT = 8u;
 
 typedef struct {
