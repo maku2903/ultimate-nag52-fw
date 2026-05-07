@@ -3,16 +3,23 @@
 #include "tcu_alloc.h"
 #include "../../src/clock.hpp"
 #include <limits.h>
+#include <math.h>
 
-int16_t LookupMap::trace_float_to_i16(const float value)
+bool LookupMap::trace_float_to_i16(const float value, int16_t *dest)
 {
+    if (!isfinite(value)) {
+        return false;
+    }
     if (value > (float)INT16_MAX) {
-        return INT16_MAX;
+        *dest = INT16_MAX;
+        return true;
     }
     if (value < (float)INT16_MIN) {
-        return INT16_MIN;
+        *dest = INT16_MIN;
+        return true;
     }
-    return (int16_t)(value >= 0.0f ? value + 0.5f : value - 0.5f);
+    *dest = (int16_t)(value >= 0.0f ? value + 0.5f : value - 0.5f);
+    return true;
 }
 
 void LookupMap::record_lookup_trace(const float xValue, const float yValue, uint8_t trace_slot)
@@ -20,8 +27,13 @@ void LookupMap::record_lookup_trace(const float xValue, const float yValue, uint
     if (trace_slot >= LOOKUP_TRACE_SLOT_COUNT) {
         return;
     }
-    this->trace_entries[trace_slot].x = trace_float_to_i16(xValue);
-    this->trace_entries[trace_slot].y = trace_float_to_i16(yValue);
+    int16_t x = 0;
+    int16_t y = 0;
+    if (!trace_float_to_i16(xValue, &x) || !trace_float_to_i16(yValue, &y)) {
+        return;
+    }
+    this->trace_entries[trace_slot].x = x;
+    this->trace_entries[trace_slot].y = y;
     this->trace_entries[trace_slot].timestamp_ms = GET_CLOCK_TIME();
     this->trace_valid_mask |= (1u << trace_slot);
 }

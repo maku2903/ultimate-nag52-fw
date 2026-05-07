@@ -29,7 +29,7 @@ class LookupMap {
         uint16_t yHeaderSize;
     private:
         void record_lookup_trace(const float xValue, const float yValue, uint8_t trace_slot);
-        static int16_t trace_float_to_i16(const float value);
+        static bool trace_float_to_i16(const float value, int16_t *dest);
 
         LookupTraceEntry trace_entries[LOOKUP_TRACE_SLOT_COUNT] = {};
         uint8_t trace_valid_mask = 0u;
