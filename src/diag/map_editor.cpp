@@ -136,8 +136,8 @@ kwp_result_t MapEditor::read_map_trace(uint8_t map_id, uint16_t *dest_size_bytes
 
     uint8_t slot_count = 0;
     uint8_t valid_mask = 0;
-    const LookupTraceEntry* entries = nullptr;
-    ptr->get_trace_entries(&slot_count, &valid_mask, &entries);
+    LookupTraceEntry entries[LOOKUP_TRACE_SLOT_COUNT] = {};
+    ptr->copy_trace_entries(&slot_count, &valid_mask, entries, LOOKUP_TRACE_SLOT_COUNT);
 
     uint16_t size = 8u + (slot_count * MAP_TRACE_ENTRY_SIZE);
     uint8_t* b = static_cast<uint8_t*>(TCU_HEAP_ALLOC(size));
