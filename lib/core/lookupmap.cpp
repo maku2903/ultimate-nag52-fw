@@ -1,8 +1,37 @@
 #include "lookupmap.h"
 #include "tcu_maths_impl.h"
 #include "tcu_alloc.h"
+#include "../../src/clock.hpp"
+#include <limits.h>
+
+int16_t LookupMap::trace_float_to_i16(const float value)
+{
+    if (value > (float)INT16_MAX) {
+        return INT16_MAX;
+    }
+    if (value < (float)INT16_MIN) {
+        return INT16_MIN;
+    }
+    return (int16_t)(value >= 0.0f ? value + 0.5f : value - 0.5f);
+}
+
+void LookupMap::record_lookup_trace(const float xValue, const float yValue, uint8_t trace_slot)
+{
+    if (trace_slot >= LOOKUP_TRACE_SLOT_COUNT) {
+        return;
+    }
+    this->trace_entries[trace_slot].x = trace_float_to_i16(xValue);
+    this->trace_entries[trace_slot].y = trace_float_to_i16(yValue);
+    this->trace_entries[trace_slot].timestamp_ms = GET_CLOCK_TIME();
+    this->trace_valid_mask |= (1u << trace_slot);
+}
 
 float LookupMap::get_value(const float xValue, const float yValue)
+{
+    return this->get_value(xValue, yValue, 0u);
+}
+
+float LookupMap::get_value(const float xValue, const float yValue, uint8_t trace_slot)
 {
     uint16_t    x_idx_min;
     uint16_t    x_idx_max;
@@ -35,7 +64,9 @@ float LookupMap::get_value(const float xValue, const float yValue)
     const float f_21f_22_interpolated = interpolate(f_21, f_22, x1, x2, xValue);
     // bilinear interpolation, not always efficient, but with more or less constant runtime
     // also see https://en.wikipedia.org/wiki/Bilinear_interpolation, https://helloacm.com/cc-function-to-compute-the-bilinear-interpolation/ for mathematical background
-    return interpolate(f_11f_12_interpolated, f_21f_22_interpolated, y1, y2, yValue);
+    float ret = interpolate(f_11f_12_interpolated, f_21f_22_interpolated, y1, y2, yValue);
+    this->record_lookup_trace(xValue, yValue, trace_slot);
+    return ret;
 }
 
 void LookupMap::get_y_headers(uint16_t *size, int16_t **headers){
@@ -53,6 +84,21 @@ void LookupMap::get_x_headers(uint16_t *size, int16_t **headers) {
 
 uint16_t LookupMap::data_size() {
     return this->table->data_size();
+}
+
+void LookupMap::get_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, const LookupTraceEntry **entries) const
+{
+    *slot_count = LOOKUP_TRACE_SLOT_COUNT;
+    *valid_mask = this->trace_valid_mask;
+    *entries = this->trace_entries;
+}
+
+void LookupMap::clear_trace_entries(void)
+{
+    for (uint8_t i = 0; i < LOOKUP_TRACE_SLOT_COUNT; i++) {
+        this->trace_entries[i] = {};
+    }
+    this->trace_valid_mask = 0u;
 }
 
 float LookupMap::get_x_header_interpolated(const float value, const int16_t y) const

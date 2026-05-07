@@ -8,6 +8,7 @@
 #include "pressure_manager.h"
 #include "gearbox.h"
 #include "tcu_alloc.h"
+#include "clock.hpp"
 
 StoredMap* get_map(uint8_t map_id) {
     switch(map_id) {
@@ -123,6 +124,51 @@ kwp_result_t MapEditor::read_map_metadata(uint8_t map_id, uint16_t *dest_size_by
     memcpy(&b[6], x_ptr, x_size*sizeof(int16_t));
     memcpy(&b[6+(x_size*sizeof(int16_t))], y_ptr, y_size*sizeof(int16_t));
     memcpy(&b[6+((x_size+y_size)*sizeof(int16_t))], k_ptr, k_size);
+    *buffer = b;
+    *dest_size_bytes = size;
+    return NRC_OK;
+}
+
+kwp_result_t MapEditor::read_map_trace(uint8_t map_id, uint16_t *dest_size_bytes, uint8_t** buffer) {
+    CHECK_MAP(map_id)
+
+    uint8_t slot_count = 0;
+    uint8_t valid_mask = 0;
+    const LookupTraceEntry* entries = nullptr;
+    ptr->get_trace_entries(&slot_count, &valid_mask, &entries);
+
+    uint16_t size = 8u + (slot_count * sizeof(LookupTraceEntry));
+    uint8_t* b = static_cast<uint8_t*>(TCU_HEAP_ALLOC(size));
+    if (nullptr == b) {
+        return NRC_UN52_NO_MEM;
+    }
+
+    uint32_t now = GET_CLOCK_TIME();
+    b[0] = MAP_TRACE_PAYLOAD_VERSION;
+    b[1] = MAP_TRACE_ENTRY_SIZE;
+    b[2] = slot_count;
+    b[3] = valid_mask;
+    b[4] = now & 0xFF;
+    b[5] = (now >> 8) & 0xFF;
+    b[6] = (now >> 16) & 0xFF;
+    b[7] = (now >> 24) & 0xFF;
+
+    uint8_t* dest = &b[8];
+    for (uint8_t i = 0; i < slot_count; i++) {
+        const LookupTraceEntry& entry = entries[i];
+        const uint16_t x = (uint16_t)entry.x;
+        const uint16_t y = (uint16_t)entry.y;
+        dest[0] = x & 0xFF;
+        dest[1] = (x >> 8) & 0xFF;
+        dest[2] = y & 0xFF;
+        dest[3] = (y >> 8) & 0xFF;
+        dest[4] = entry.timestamp_ms & 0xFF;
+        dest[5] = (entry.timestamp_ms >> 8) & 0xFF;
+        dest[6] = (entry.timestamp_ms >> 16) & 0xFF;
+        dest[7] = (entry.timestamp_ms >> 24) & 0xFF;
+        dest += MAP_TRACE_ENTRY_SIZE;
+    }
+
     *buffer = b;
     *dest_size_bytes = size;
     return NRC_OK;
