@@ -11,6 +11,19 @@
 #include "clock.hpp"
 
 static_assert(MAP_TRACE_ENTRY_SIZE == 8u, "Map trace wire entry size must stay 8 bytes");
+static const uint16_t MAP_TRACE_HEADER_SIZE = 8u;
+
+static void write_u16_le(uint8_t* dest, uint16_t value) {
+    dest[0] = static_cast<uint8_t>(value & 0x00FFu);
+    dest[1] = static_cast<uint8_t>((value >> 8u) & 0x00FFu);
+}
+
+static void write_u32_le(uint8_t* dest, uint32_t value) {
+    dest[0] = static_cast<uint8_t>(value & 0x000000FFu);
+    dest[1] = static_cast<uint8_t>((value >> 8u) & 0x000000FFu);
+    dest[2] = static_cast<uint8_t>((value >> 16u) & 0x000000FFu);
+    dest[3] = static_cast<uint8_t>((value >> 24u) & 0x000000FFu);
+}
 
 StoredMap* get_map(uint8_t map_id) {
     switch(map_id) {
@@ -139,7 +152,7 @@ kwp_result_t MapEditor::read_map_trace(uint8_t map_id, uint16_t *dest_size_bytes
     LookupTraceEntry entries[LOOKUP_TRACE_SLOT_COUNT] = {};
     ptr->copy_trace_entries(&slot_count, &valid_mask, entries, LOOKUP_TRACE_SLOT_COUNT);
 
-    uint16_t size = 8u + (slot_count * MAP_TRACE_ENTRY_SIZE);
+    uint16_t size = static_cast<uint16_t>(MAP_TRACE_HEADER_SIZE + (slot_count * MAP_TRACE_ENTRY_SIZE));
     uint8_t* b = static_cast<uint8_t*>(TCU_HEAP_ALLOC(size));
     if (nullptr == b) {
         return NRC_UN52_NO_MEM;
@@ -150,24 +163,14 @@ kwp_result_t MapEditor::read_map_trace(uint8_t map_id, uint16_t *dest_size_bytes
     b[1] = MAP_TRACE_ENTRY_SIZE;
     b[2] = slot_count;
     b[3] = valid_mask;
-    b[4] = now & 0xFF;
-    b[5] = (now >> 8) & 0xFF;
-    b[6] = (now >> 16) & 0xFF;
-    b[7] = (now >> 24) & 0xFF;
+    write_u32_le(&b[4], now);
 
-    uint8_t* dest = &b[8];
+    uint8_t* dest = &b[MAP_TRACE_HEADER_SIZE];
     for (uint8_t i = 0; i < slot_count; i++) {
         const LookupTraceEntry& entry = entries[i];
-        const uint16_t x = (uint16_t)entry.x;
-        const uint16_t y = (uint16_t)entry.y;
-        dest[0] = x & 0xFF;
-        dest[1] = (x >> 8) & 0xFF;
-        dest[2] = y & 0xFF;
-        dest[3] = (y >> 8) & 0xFF;
-        dest[4] = entry.timestamp_ms & 0xFF;
-        dest[5] = (entry.timestamp_ms >> 8) & 0xFF;
-        dest[6] = (entry.timestamp_ms >> 16) & 0xFF;
-        dest[7] = (entry.timestamp_ms >> 24) & 0xFF;
+        write_u16_le(&dest[0], static_cast<uint16_t>(entry.x));
+        write_u16_le(&dest[2], static_cast<uint16_t>(entry.y));
+        write_u32_le(&dest[4], entry.timestamp_ms);
         dest += MAP_TRACE_ENTRY_SIZE;
     }
 
