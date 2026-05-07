@@ -552,6 +552,12 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
             ret = MapEditor::read_map_data(map_id, c, &read_bytes_size, &buffer);
         } else if (cmd == MAP_CMD_READ_META) { 
             ret = MapEditor::read_map_metadata(map_id, &read_bytes_size, &buffer);
+        } else if (cmd == MAP_CMD_READ_TRACE) {
+            if (map_len_bytes != 0u) {
+                ret = NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT;
+            } else {
+                ret = MapEditor::read_map_trace(map_id, &read_bytes_size, &buffer);
+            }
         } else {
             ret = NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT;
         }
@@ -566,7 +572,7 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
             buf[1] = read_bytes_size >> 8;
             memcpy(&buf[2], buffer, read_bytes_size);
             make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, buf, 2+read_bytes_size);
-            delete[] buf;
+            TCU_FREE(buf);
             TCU_FREE(buffer); // DELETE MapEditor allocation
             return;
         } else {

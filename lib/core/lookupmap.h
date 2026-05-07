@@ -1,20 +1,38 @@
 #ifndef LOOKUPMAP_H
 #define LOOKUPMAP_H
 
+#include <stdint.h>
 #include "lookuptable.h"
+
+static const uint8_t LOOKUP_TRACE_SLOT_COUNT = 8u;
+
+typedef struct {
+    int16_t x;
+    int16_t y;
+    uint32_t timestamp_ms;
+} __attribute__((packed)) LookupTraceEntry;
 
 class LookupMap {
     public:
         float get_value(const float xValue, const float yValue);
+        float get_value(const float xValue, const float yValue, uint8_t trace_slot);
         void get_y_headers(uint16_t *size, int16_t **headers);
         float get_x_header_interpolated(const float value, const int16_t y) const;
         int16_t* get_current_data(void) const;
         void get_x_headers(uint16_t *size, int16_t **headers);
         uint16_t data_size();
+        void get_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, const LookupTraceEntry **entries) const;
+        void clear_trace_entries(void);
     protected:
         LookupTable* table;
         LookupHeader* yHeader;
         uint16_t yHeaderSize;
+    private:
+        void record_lookup_trace(const float xValue, const float yValue, uint8_t trace_slot);
+        static int16_t trace_float_to_i16(const float value);
+
+        LookupTraceEntry trace_entries[LOOKUP_TRACE_SLOT_COUNT] = {};
+        uint8_t trace_valid_mask = 0u;
 };
 
 class LookupAllocMap : public LookupMap {
