@@ -10,6 +10,8 @@
 #include "tcu_alloc.h"
 #include "clock.hpp"
 
+static_assert(MAP_TRACE_ENTRY_SIZE == 8u, "Map trace wire entry size must stay 8 bytes");
+
 StoredMap* get_map(uint8_t map_id) {
     switch(map_id) {
         case A_UPSHIFT_MAP_ID:
@@ -137,7 +139,7 @@ kwp_result_t MapEditor::read_map_trace(uint8_t map_id, uint16_t *dest_size_bytes
     const LookupTraceEntry* entries = nullptr;
     ptr->get_trace_entries(&slot_count, &valid_mask, &entries);
 
-    uint16_t size = 8u + (slot_count * sizeof(LookupTraceEntry));
+    uint16_t size = 8u + (slot_count * MAP_TRACE_ENTRY_SIZE);
     uint8_t* b = static_cast<uint8_t*>(TCU_HEAP_ALLOC(size));
     if (nullptr == b) {
         return NRC_UN52_NO_MEM;
