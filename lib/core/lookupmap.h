@@ -10,7 +10,7 @@ typedef struct {
     int16_t x;
     int16_t y;
     uint32_t timestamp_ms;
-} __attribute__((packed)) LookupTraceEntry;
+} LookupTraceEntry;
 
 class LookupMap {
     public:
