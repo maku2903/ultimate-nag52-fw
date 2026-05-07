@@ -22,6 +22,7 @@ class LookupMap {
         void get_x_headers(uint16_t *size, int16_t **headers);
         uint16_t data_size();
         void get_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, const LookupTraceEntry **entries) const;
+        void copy_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, LookupTraceEntry *entries, uint8_t max_entries) const;
         void clear_trace_entries(void);
     protected:
         LookupTable* table;
@@ -32,6 +33,7 @@ class LookupMap {
         static bool trace_float_to_i16(const float value, int16_t *dest);
 
         LookupTraceEntry trace_entries[LOOKUP_TRACE_SLOT_COUNT] = {};
+        volatile uint8_t trace_sequence[LOOKUP_TRACE_SLOT_COUNT] = {};
         uint8_t trace_valid_mask = 0u;
 };
 

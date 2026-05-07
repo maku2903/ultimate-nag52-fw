@@ -32,10 +32,12 @@ void LookupMap::record_lookup_trace(const float xValue, const float yValue, uint
     if (!trace_float_to_i16(xValue, &x) || !trace_float_to_i16(yValue, &y)) {
         return;
     }
+    this->trace_sequence[trace_slot] = (uint8_t)((this->trace_sequence[trace_slot] + 1u) | 1u);
     this->trace_entries[trace_slot].x = x;
     this->trace_entries[trace_slot].y = y;
     this->trace_entries[trace_slot].timestamp_ms = GET_CLOCK_TIME();
     this->trace_valid_mask |= (1u << trace_slot);
+    this->trace_sequence[trace_slot] = (uint8_t)((this->trace_sequence[trace_slot] + 1u) & 0xFEu);
 }
 
 float LookupMap::get_value(const float xValue, const float yValue)
@@ -105,10 +107,39 @@ void LookupMap::get_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, cons
     *entries = this->trace_entries;
 }
 
+void LookupMap::copy_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, LookupTraceEntry *entries, uint8_t max_entries) const
+{
+    const uint8_t count = max_entries < LOOKUP_TRACE_SLOT_COUNT ? max_entries : LOOKUP_TRACE_SLOT_COUNT;
+    uint8_t mask = this->trace_valid_mask;
+    if (count < 8u) {
+        mask &= (uint8_t)((1u << count) - 1u);
+    }
+    for (uint8_t i = 0; i < count; i++) {
+        entries[i] = {};
+        bool stable = false;
+        for (uint8_t attempt = 0; attempt < 3u; attempt++) {
+            const uint8_t before = this->trace_sequence[i];
+            const LookupTraceEntry entry = this->trace_entries[i];
+            const uint8_t after = this->trace_sequence[i];
+            if (before == after && ((after & 1u) == 0u)) {
+                entries[i] = entry;
+                stable = true;
+                break;
+            }
+        }
+        if (!stable) {
+            mask &= (uint8_t)~(1u << i);
+        }
+    }
+    *slot_count = count;
+    *valid_mask = mask;
+}
+
 void LookupMap::clear_trace_entries(void)
 {
     for (uint8_t i = 0; i < LOOKUP_TRACE_SLOT_COUNT; i++) {
         this->trace_entries[i] = {};
+        this->trace_sequence[i] = 0u;
     }
     this->trace_valid_mask = 0u;
 }
