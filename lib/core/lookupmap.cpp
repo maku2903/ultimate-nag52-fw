@@ -24,6 +24,7 @@ bool LookupMap::trace_float_to_i16(const float value, int16_t *dest)
 
 void LookupMap::record_lookup_trace(const float xValue, const float yValue, uint8_t trace_slot)
 {
+#if MAP_LOOKUP_TRACE_ENABLED
     if (trace_slot >= LOOKUP_TRACE_SLOT_COUNT) {
         return;
     }
@@ -38,6 +39,11 @@ void LookupMap::record_lookup_trace(const float xValue, const float yValue, uint
     this->trace_entries[trace_slot].timestamp_ms = GET_CLOCK_TIME();
     this->trace_valid_mask |= (1u << trace_slot);
     this->trace_sequence[trace_slot] = (uint8_t)((this->trace_sequence[trace_slot] + 1u) & 0xFEu);
+#else
+    (void)xValue;
+    (void)yValue;
+    (void)trace_slot;
+#endif
 }
 
 float LookupMap::get_value(const float xValue, const float yValue)
@@ -109,6 +115,7 @@ void LookupMap::get_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, cons
 
 void LookupMap::copy_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, LookupTraceEntry *entries, uint8_t max_entries) const
 {
+#if MAP_LOOKUP_TRACE_ENABLED
     const uint8_t count = max_entries < LOOKUP_TRACE_SLOT_COUNT ? max_entries : LOOKUP_TRACE_SLOT_COUNT;
     uint8_t mask = this->trace_valid_mask;
     if (count < 8u) {
@@ -133,6 +140,12 @@ void LookupMap::copy_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, Loo
     }
     *slot_count = count;
     *valid_mask = mask;
+#else
+    (void)entries;
+    (void)max_entries;
+    *slot_count = 0u;
+    *valid_mask = 0u;
+#endif
 }
 
 void LookupMap::clear_trace_entries(void)
