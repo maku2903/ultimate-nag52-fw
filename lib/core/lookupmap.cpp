@@ -138,7 +138,14 @@ void LookupMap::copy_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, Loo
             mask &= (uint8_t)~(1u << i);
         }
     }
-    *slot_count = count;
+    uint8_t used_count = 0u;
+    for (uint8_t i = count; i > 0u; i--) {
+        if ((mask & (1u << (i - 1u))) != 0u) {
+            used_count = i;
+            break;
+        }
+    }
+    *slot_count = used_count;
     *valid_mask = mask;
 #else
     (void)entries;
