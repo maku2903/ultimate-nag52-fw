@@ -10,15 +10,15 @@ bool LookupMap::trace_float_to_i16(const float value, int16_t *dest)
     if (!isfinite(value)) {
         return false;
     }
-    if (value > (float)INT16_MAX) {
+    if (value > static_cast<float>(INT16_MAX)) {
         *dest = INT16_MAX;
         return true;
     }
-    if (value < (float)INT16_MIN) {
+    if (value < static_cast<float>(INT16_MIN)) {
         *dest = INT16_MIN;
         return true;
     }
-    *dest = (int16_t)(value >= 0.0f ? value + 0.5f : value - 0.5f);
+    *dest = static_cast<int16_t>(value >= 0.0f ? value + 0.5f : value - 0.5f);
     return true;
 }
 
@@ -33,12 +33,12 @@ void LookupMap::record_lookup_trace(const float xValue, const float yValue, uint
     if (!trace_float_to_i16(xValue, &x) || !trace_float_to_i16(yValue, &y)) {
         return;
     }
-    this->trace_sequence[trace_slot] = (uint8_t)((this->trace_sequence[trace_slot] + 1u) | 1u);
+    this->trace_sequence[trace_slot] = static_cast<uint8_t>((this->trace_sequence[trace_slot] + 1u) | 1u);
     this->trace_entries[trace_slot].x = x;
     this->trace_entries[trace_slot].y = y;
     this->trace_entries[trace_slot].timestamp_ms = GET_CLOCK_TIME();
     this->trace_valid_mask |= (1u << trace_slot);
-    this->trace_sequence[trace_slot] = (uint8_t)((this->trace_sequence[trace_slot] + 1u) & 0xFEu);
+    this->trace_sequence[trace_slot] = static_cast<uint8_t>((this->trace_sequence[trace_slot] + 1u) & 0xFEu);
 #else
     (void)xValue;
     (void)yValue;
@@ -106,20 +106,21 @@ uint16_t LookupMap::data_size() {
     return this->table->data_size();
 }
 
-void LookupMap::get_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, const LookupTraceEntry **entries) const
-{
-    *slot_count = LOOKUP_TRACE_SLOT_COUNT;
-    *valid_mask = this->trace_valid_mask;
-    *entries = this->trace_entries;
-}
-
 void LookupMap::copy_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, LookupTraceEntry *entries, uint8_t max_entries) const
 {
+    if ((slot_count == nullptr) || (valid_mask == nullptr)) {
+        return;
+    }
+    *slot_count = 0u;
+    *valid_mask = 0u;
+    if ((entries == nullptr) || (max_entries == 0u)) {
+        return;
+    }
 #if MAP_LOOKUP_TRACE_ENABLED
     const uint8_t count = max_entries < LOOKUP_TRACE_SLOT_COUNT ? max_entries : LOOKUP_TRACE_SLOT_COUNT;
     uint8_t mask = this->trace_valid_mask;
     if (count < 8u) {
-        mask &= (uint8_t)((1u << count) - 1u);
+        mask &= static_cast<uint8_t>((1u << count) - 1u);
     }
     for (uint8_t i = 0; i < count; i++) {
         entries[i] = {};
@@ -135,7 +136,7 @@ void LookupMap::copy_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, Loo
             }
         }
         if (!stable) {
-            mask &= (uint8_t)~(1u << i);
+            mask &= static_cast<uint8_t>(~(1u << i));
         }
     }
     uint8_t used_count = 0u;
@@ -150,8 +151,6 @@ void LookupMap::copy_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, Loo
 #else
     (void)entries;
     (void)max_entries;
-    *slot_count = 0u;
-    *valid_mask = 0u;
 #endif
 }
 

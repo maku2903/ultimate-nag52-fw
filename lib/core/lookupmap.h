@@ -10,11 +10,11 @@
 
 static const uint8_t LOOKUP_TRACE_SLOT_COUNT = 8u;
 
-typedef struct {
+struct LookupTraceEntry {
     int16_t x;
     int16_t y;
     uint32_t timestamp_ms;
-} LookupTraceEntry;
+};
 
 class LookupMap {
     public:
@@ -25,7 +25,6 @@ class LookupMap {
         int16_t* get_current_data(void) const;
         void get_x_headers(uint16_t *size, int16_t **headers);
         uint16_t data_size();
-        void get_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, const LookupTraceEntry **entries) const;
         void copy_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, LookupTraceEntry *entries, uint8_t max_entries) const;
         void clear_trace_entries(void);
     protected:
