@@ -552,11 +552,11 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
             ret = MapEditor::read_map_data(map_id, c, &read_bytes_size, &buffer);
         } else if (cmd == MAP_CMD_READ_META) { 
             ret = MapEditor::read_map_metadata(map_id, &read_bytes_size, &buffer);
-        } else if (cmd == MAP_CMD_READ_TRACE) {
+        } else if (cmd == MAP_CMD_GET_LOOKUP_VALS) {
             if (map_len_bytes != 0u) {
                 ret = NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT;
             } else {
-                ret = MapEditor::read_map_trace(map_id, &read_bytes_size, &buffer);
+                ret = MapEditor::read_map_lookup_cache(map_id, &read_bytes_size, &buffer);
             }
         } else {
             ret = NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT;

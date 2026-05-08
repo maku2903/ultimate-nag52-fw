@@ -4,15 +4,11 @@
 #include <stdint.h>
 #include "lookuptable.h"
 
-#ifndef MAP_LOOKUP_TRACE_ENABLED
-#define MAP_LOOKUP_TRACE_ENABLED 1
-#endif
+static const uint8_t MAX_LOOKUP_CACHE = 5u;
 
-static const uint8_t LOOKUP_TRACE_SLOT_COUNT = 8u;
-
-struct LookupTraceEntry {
-    int16_t x;
-    int16_t y;
+struct LookupCache {
+    float x_val;
+    float y_val;
     uint32_t timestamp_ms;
 };
 
@@ -25,19 +21,17 @@ class LookupMap {
         int16_t* get_current_data(void) const;
         void get_x_headers(uint16_t *size, int16_t **headers);
         uint16_t data_size();
-        void copy_trace_entries(uint8_t *slot_count, uint8_t *valid_mask, LookupTraceEntry *entries, uint8_t max_entries) const;
-        void clear_trace_entries(void);
+        void copy_lookup_cache(uint8_t *entry_count, LookupCache *entries, uint8_t max_entries) const;
+        void clear_lookup_cache(void);
     protected:
         LookupTable* table;
         LookupHeader* yHeader;
         uint16_t yHeaderSize;
     private:
-        void record_lookup_trace(const float xValue, const float yValue, uint8_t trace_slot);
-        static bool trace_float_to_i16(const float value, int16_t *dest);
+        void record_lookup_cache(const float xValue, const float yValue, uint8_t cache_idx);
 
-        LookupTraceEntry trace_entries[LOOKUP_TRACE_SLOT_COUNT] = {};
-        volatile uint8_t trace_sequence[LOOKUP_TRACE_SLOT_COUNT] = {};
-        uint8_t trace_valid_mask = 0u;
+        LookupCache lookup_cache[MAX_LOOKUP_CACHE] = {};
+        volatile uint8_t lookup_cache_sequence[MAX_LOOKUP_CACHE] = {};
 };
 
 class LookupAllocMap : public LookupMap {

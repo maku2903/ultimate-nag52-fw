@@ -10,12 +10,12 @@
 #include "tcu_alloc.h"
 #include "clock.hpp"
 
-static_assert(MAP_TRACE_ENTRY_SIZE == 8u, "Map trace wire entry size must stay 8 bytes");
-static const uint16_t MAP_TRACE_HEADER_SIZE = 8u;
+static_assert(sizeof(float) == 4u, "Map lookup cache wire format requires 32-bit floats");
+static_assert(MAP_LOOKUP_CACHE_ENTRY_SIZE == 12u, "Map lookup cache wire entry size must stay 12 bytes");
+static const uint16_t MAP_LOOKUP_CACHE_HEADER_SIZE = 8u;
 
-static void write_u16_le(uint8_t* dest, uint16_t value) {
-    dest[0] = static_cast<uint8_t>(value & 0x00FFu);
-    dest[1] = static_cast<uint8_t>((value >> 8u) & 0x00FFu);
+static void write_float_le(uint8_t* dest, float value) {
+    memcpy(dest, &value, sizeof(value));
 }
 
 static void write_u32_le(uint8_t* dest, uint32_t value) {
@@ -144,34 +144,33 @@ kwp_result_t MapEditor::read_map_metadata(uint8_t map_id, uint16_t *dest_size_by
     return NRC_OK;
 }
 
-kwp_result_t MapEditor::read_map_trace(uint8_t map_id, uint16_t *dest_size_bytes, uint8_t** buffer) {
+kwp_result_t MapEditor::read_map_lookup_cache(uint8_t map_id, uint16_t *dest_size_bytes, uint8_t** buffer) {
     CHECK_MAP(map_id)
 
-    uint8_t slot_count = 0;
-    uint8_t valid_mask = 0;
-    LookupTraceEntry entries[LOOKUP_TRACE_SLOT_COUNT] = {};
-    ptr->copy_trace_entries(&slot_count, &valid_mask, entries, LOOKUP_TRACE_SLOT_COUNT);
+    uint8_t entry_count = 0;
+    LookupCache entries[MAX_LOOKUP_CACHE] = {};
+    ptr->copy_lookup_cache(&entry_count, entries, MAX_LOOKUP_CACHE);
 
-    uint16_t size = static_cast<uint16_t>(MAP_TRACE_HEADER_SIZE + (slot_count * MAP_TRACE_ENTRY_SIZE));
+    uint16_t size = static_cast<uint16_t>(MAP_LOOKUP_CACHE_HEADER_SIZE + (entry_count * MAP_LOOKUP_CACHE_ENTRY_SIZE));
     uint8_t* b = static_cast<uint8_t*>(TCU_HEAP_ALLOC(size));
     if (nullptr == b) {
         return NRC_UN52_NO_MEM;
     }
 
     uint32_t now = GET_CLOCK_TIME();
-    b[0] = MAP_TRACE_PAYLOAD_VERSION;
-    b[1] = MAP_TRACE_ENTRY_SIZE;
-    b[2] = slot_count;
-    b[3] = valid_mask;
+    b[0] = entry_count;
+    b[1] = MAP_LOOKUP_CACHE_ENTRY_SIZE;
+    b[2] = 0u;
+    b[3] = 0u;
     write_u32_le(&b[4], now);
 
-    uint8_t* dest = &b[MAP_TRACE_HEADER_SIZE];
-    for (uint8_t i = 0; i < slot_count; i++) {
-        const LookupTraceEntry& entry = entries[i];
-        write_u16_le(&dest[0], static_cast<uint16_t>(entry.x));
-        write_u16_le(&dest[2], static_cast<uint16_t>(entry.y));
-        write_u32_le(&dest[4], entry.timestamp_ms);
-        dest += MAP_TRACE_ENTRY_SIZE;
+    uint8_t* dest = &b[MAP_LOOKUP_CACHE_HEADER_SIZE];
+    for (uint8_t i = 0; i < entry_count; i++) {
+        const LookupCache& entry = entries[i];
+        write_float_le(&dest[0], entry.x_val);
+        write_float_le(&dest[4], entry.y_val);
+        write_u32_le(&dest[8], entry.timestamp_ms);
+        dest += MAP_LOOKUP_CACHE_ENTRY_SIZE;
     }
 
     *buffer = b;
