@@ -4,6 +4,11 @@
 #include "../../src/clock.hpp"
 #include <math.h>
 
+static uint32_t elapsed_time_ms(uint32_t now_ms, uint32_t past_ms)
+{
+    return now_ms - past_ms;
+}
+
 void LookupMap::record_lookup_cache(const float xValue, const float yValue, uint8_t cache_idx)
 {
     if (cache_idx >= MAX_LOOKUP_CACHE) {
@@ -123,7 +128,7 @@ void LookupMap::copy_lookup_cache(uint8_t *entry_count, LookupCacheReadEntry *en
             break;
         }
         const LookupCache& entry = snapshot[i];
-        if (entry.timestamp_ms != 0u && (now_ms - entry.timestamp_ms) <= max_age_ms) {
+        if (entry.timestamp_ms != 0u && elapsed_time_ms(now_ms, entry.timestamp_ms) <= max_age_ms) {
             entries[used_count].slot_id = i;
             entries[used_count].cache = entry;
             used_count++;
