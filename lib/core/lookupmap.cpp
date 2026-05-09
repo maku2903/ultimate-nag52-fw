@@ -2,7 +2,7 @@
 #include "tcu_maths_impl.h"
 #include "tcu_alloc.h"
 #include "../../src/clock.hpp"
-#include <math.h>
+#include <cmath>
 
 static uint32_t elapsed_time_ms(uint32_t now_ms, uint32_t past_ms)
 {
@@ -14,7 +14,7 @@ void LookupMap::record_lookup_cache(const float xValue, const float yValue, uint
     if (cache_idx >= MAX_LOOKUP_CACHE) {
         return;
     }
-    if (!isfinite(xValue) || !isfinite(yValue)) {
+    if ((!std::isfinite(xValue)) || (!std::isfinite(yValue))) {
         return;
     }
     const LookupCache entry = {
