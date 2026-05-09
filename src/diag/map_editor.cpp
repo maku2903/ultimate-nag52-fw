@@ -11,8 +11,9 @@
 #include "clock.hpp"
 
 static_assert(sizeof(float) == 4u, "Map lookup cache wire format requires 32-bit floats");
-static_assert(MAP_LOOKUP_CACHE_ENTRY_SIZE == 12u, "Map lookup cache wire entry size must stay 12 bytes");
-static const uint16_t MAP_LOOKUP_CACHE_HEADER_SIZE = 8u;
+static_assert(MAP_LOOKUP_CACHE_ENTRY_SIZE == 13u, "Map lookup cache wire entry size must stay 13 bytes");
+static const uint16_t MAP_LOOKUP_CACHE_HEADER_SIZE = 4u;
+static const uint32_t MAP_LOOKUP_CACHE_MAX_AGE_MS = 60000u;
 
 static void write_float_le(uint8_t* dest, float value) {
     memcpy(dest, &value, sizeof(value));
@@ -148,8 +149,9 @@ kwp_result_t MapEditor::read_map_lookup_cache(uint8_t map_id, uint16_t *dest_siz
     CHECK_MAP(map_id)
 
     uint8_t entry_count = 0;
-    LookupCache entries[MAX_LOOKUP_CACHE] = {};
-    ptr->copy_lookup_cache(&entry_count, entries, MAX_LOOKUP_CACHE);
+    const uint32_t now = GET_CLOCK_TIME();
+    LookupCacheReadEntry entries[MAX_LOOKUP_CACHE] = {};
+    ptr->copy_lookup_cache(&entry_count, entries, MAX_LOOKUP_CACHE, now, MAP_LOOKUP_CACHE_MAX_AGE_MS);
 
     uint16_t size = static_cast<uint16_t>(MAP_LOOKUP_CACHE_HEADER_SIZE + (entry_count * MAP_LOOKUP_CACHE_ENTRY_SIZE));
     uint8_t* b = static_cast<uint8_t*>(TCU_HEAP_ALLOC(size));
@@ -157,19 +159,19 @@ kwp_result_t MapEditor::read_map_lookup_cache(uint8_t map_id, uint16_t *dest_siz
         return NRC_UN52_NO_MEM;
     }
 
-    uint32_t now = GET_CLOCK_TIME();
     b[0] = entry_count;
     b[1] = MAP_LOOKUP_CACHE_ENTRY_SIZE;
     b[2] = 0u;
     b[3] = 0u;
-    write_u32_le(&b[4], now);
 
     uint8_t* dest = &b[MAP_LOOKUP_CACHE_HEADER_SIZE];
     for (uint8_t i = 0; i < entry_count; i++) {
-        const LookupCache& entry = entries[i];
-        write_float_le(&dest[0], entry.x_val);
-        write_float_le(&dest[4], entry.y_val);
-        write_u32_le(&dest[8], entry.timestamp_ms);
+        const LookupCacheReadEntry& wire_entry = entries[i];
+        const LookupCache& entry = wire_entry.cache;
+        dest[0] = wire_entry.slot_id;
+        write_float_le(&dest[1], entry.x_val);
+        write_float_le(&dest[5], entry.y_val);
+        write_u32_le(&dest[9], entry.timestamp_ms);
         dest += MAP_LOOKUP_CACHE_ENTRY_SIZE;
     }
 

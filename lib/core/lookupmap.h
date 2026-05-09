@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "lookuptable.h"
+#include "freertos/FreeRTOS.h"
 
 static const uint8_t MAX_LOOKUP_CACHE = 5u;
 
@@ -12,16 +13,21 @@ struct LookupCache {
     uint32_t timestamp_ms;
 };
 
+struct LookupCacheReadEntry {
+    uint8_t slot_id;
+    LookupCache cache;
+};
+
 class LookupMap {
     public:
         float get_value(const float xValue, const float yValue);
-        float get_value(const float xValue, const float yValue, uint8_t trace_slot);
+        float get_value(const float xValue, const float yValue, uint8_t cache_slot);
         void get_y_headers(uint16_t *size, int16_t **headers);
         float get_x_header_interpolated(const float value, const int16_t y) const;
         int16_t* get_current_data(void) const;
         void get_x_headers(uint16_t *size, int16_t **headers);
         uint16_t data_size();
-        void copy_lookup_cache(uint8_t *entry_count, LookupCache *entries, uint8_t max_entries) const;
+        void copy_lookup_cache(uint8_t *entry_count, LookupCacheReadEntry *entries, uint8_t max_entries, uint32_t now_ms, uint32_t max_age_ms) const;
         void clear_lookup_cache(void);
     protected:
         LookupTable* table;
@@ -29,9 +35,11 @@ class LookupMap {
         uint16_t yHeaderSize;
     private:
         void record_lookup_cache(const float xValue, const float yValue, uint8_t cache_idx);
+        void copy_lookup_cache_snapshot(LookupCache *snapshot, uint8_t snapshot_count) const;
+        void clear_lookup_cache_locked(void);
 
         LookupCache lookup_cache[MAX_LOOKUP_CACHE] = {};
-        volatile uint8_t lookup_cache_sequence[MAX_LOOKUP_CACHE] = {};
+        mutable portMUX_TYPE lookup_cache_mutex = portMUX_INITIALIZER_UNLOCKED;
 };
 
 class LookupAllocMap : public LookupMap {
