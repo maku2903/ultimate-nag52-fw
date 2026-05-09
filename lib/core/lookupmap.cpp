@@ -12,11 +12,37 @@ void LookupMap::record_lookup_cache(const float xValue, const float yValue, uint
     if (!isfinite(xValue) || !isfinite(yValue)) {
         return;
     }
-    this->lookup_cache_sequence[cache_idx] = static_cast<uint8_t>((this->lookup_cache_sequence[cache_idx] + 1u) | 1u);
-    this->lookup_cache[cache_idx].x_val = xValue;
-    this->lookup_cache[cache_idx].y_val = yValue;
-    this->lookup_cache[cache_idx].timestamp_ms = GET_CLOCK_TIME();
-    this->lookup_cache_sequence[cache_idx] = static_cast<uint8_t>((this->lookup_cache_sequence[cache_idx] + 1u) & 0xFEu);
+    const LookupCache entry = {
+        .x_val = xValue,
+        .y_val = yValue,
+        .timestamp_ms = GET_CLOCK_TIME(),
+    };
+
+    portENTER_CRITICAL(&this->lookup_cache_mutex);
+    this->lookup_cache[cache_idx] = entry;
+    portEXIT_CRITICAL(&this->lookup_cache_mutex);
+}
+
+void LookupMap::copy_lookup_cache_snapshot(LookupCache *snapshot, uint8_t snapshot_count) const
+{
+    if ((snapshot == nullptr) || (snapshot_count == 0u)) {
+        return;
+    }
+    const uint8_t count = snapshot_count < MAX_LOOKUP_CACHE ? snapshot_count : MAX_LOOKUP_CACHE;
+    portENTER_CRITICAL(&this->lookup_cache_mutex);
+    for (uint8_t i = 0; i < count; i++) {
+        snapshot[i] = this->lookup_cache[i];
+    }
+    portEXIT_CRITICAL(&this->lookup_cache_mutex);
+}
+
+void LookupMap::clear_lookup_cache_locked(void)
+{
+    portENTER_CRITICAL(&this->lookup_cache_mutex);
+    for (uint8_t i = 0; i < MAX_LOOKUP_CACHE; i++) {
+        this->lookup_cache[i] = {};
+    }
+    portEXIT_CRITICAL(&this->lookup_cache_mutex);
 }
 
 float LookupMap::get_value(const float xValue, const float yValue)
@@ -24,7 +50,7 @@ float LookupMap::get_value(const float xValue, const float yValue)
     return this->get_value(xValue, yValue, 0u);
 }
 
-float LookupMap::get_value(const float xValue, const float yValue, uint8_t trace_slot)
+float LookupMap::get_value(const float xValue, const float yValue, uint8_t cache_slot)
 {
     uint16_t    x_idx_min;
     uint16_t    x_idx_max;
@@ -58,7 +84,7 @@ float LookupMap::get_value(const float xValue, const float yValue, uint8_t trace
     // bilinear interpolation, not always efficient, but with more or less constant runtime
     // also see https://en.wikipedia.org/wiki/Bilinear_interpolation, https://helloacm.com/cc-function-to-compute-the-bilinear-interpolation/ for mathematical background
     float ret = interpolate(f_11f_12_interpolated, f_21f_22_interpolated, y1, y2, yValue);
-    this->record_lookup_cache(xValue, yValue, trace_slot);
+    this->record_lookup_cache(xValue, yValue, cache_slot);
     return ret;
 }
 
@@ -79,7 +105,7 @@ uint16_t LookupMap::data_size() {
     return this->table->data_size();
 }
 
-void LookupMap::copy_lookup_cache(uint8_t *entry_count, LookupCache *entries, uint8_t max_entries) const
+void LookupMap::copy_lookup_cache(uint8_t *entry_count, LookupCacheReadEntry *entries, uint8_t max_entries, uint32_t now_ms, uint32_t max_age_ms) const
 {
     if (entry_count == nullptr) {
         return;
@@ -88,22 +114,18 @@ void LookupMap::copy_lookup_cache(uint8_t *entry_count, LookupCache *entries, ui
     if ((entries == nullptr) || (max_entries == 0u)) {
         return;
     }
-    const uint8_t count = max_entries < MAX_LOOKUP_CACHE ? max_entries : MAX_LOOKUP_CACHE;
+    LookupCache snapshot[MAX_LOOKUP_CACHE] = {};
+    this->copy_lookup_cache_snapshot(snapshot, MAX_LOOKUP_CACHE);
+
     uint8_t used_count = 0u;
-    for (uint8_t i = 0; i < count; i++) {
-        LookupCache entry = {};
-        bool stable = false;
-        for (uint8_t attempt = 0; attempt < 3u; attempt++) {
-            const uint8_t before = this->lookup_cache_sequence[i];
-            entry = this->lookup_cache[i];
-            const uint8_t after = this->lookup_cache_sequence[i];
-            if (before == after && ((after & 1u) == 0u)) {
-                stable = true;
-                break;
-            }
+    for (uint8_t i = 0; i < MAX_LOOKUP_CACHE; i++) {
+        if (used_count >= max_entries) {
+            break;
         }
-        if (stable && entry.timestamp_ms != 0u) {
-            entries[used_count] = entry;
+        const LookupCache& entry = snapshot[i];
+        if (entry.timestamp_ms != 0u && (now_ms - entry.timestamp_ms) <= max_age_ms) {
+            entries[used_count].slot_id = i;
+            entries[used_count].cache = entry;
             used_count++;
         }
     }
@@ -112,10 +134,7 @@ void LookupMap::copy_lookup_cache(uint8_t *entry_count, LookupCache *entries, ui
 
 void LookupMap::clear_lookup_cache(void)
 {
-    for (uint8_t i = 0; i < MAX_LOOKUP_CACHE; i++) {
-        this->lookup_cache[i] = {};
-        this->lookup_cache_sequence[i] = 0u;
-    }
+    this->clear_lookup_cache_locked();
 }
 
 float LookupMap::get_x_header_interpolated(const float value, const int16_t y) const
