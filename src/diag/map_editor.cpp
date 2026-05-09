@@ -17,6 +17,7 @@ static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "Map lookup cache wire 
 static_assert(MAP_LOOKUP_CACHE_ENTRY_SIZE == 13u, "Map lookup cache wire entry size must stay 13 bytes");
 static const uint16_t MAP_LOOKUP_CACHE_HEADER_SIZE = 4u;
 static const uint32_t MAP_LOOKUP_CACHE_MAX_AGE_MS = 60000u;
+static_assert((MAP_LOOKUP_CACHE_HEADER_SIZE + (MAX_LOOKUP_CACHE * MAP_LOOKUP_CACHE_ENTRY_SIZE)) <= UINT16_MAX, "Map lookup cache response must fit in uint16_t");
 
 static void write_u32_le(uint8_t* dest, uint32_t value) {
     dest[0] = static_cast<uint8_t>(value & 0x000000FFu);
@@ -29,6 +30,12 @@ static void write_f32_le(uint8_t* dest, float value) {
     uint32_t raw = 0u;
     memcpy(&raw, &value, sizeof(raw));
     write_u32_le(dest, raw);
+}
+
+static uint16_t lookup_cache_payload_size(uint8_t entry_count) {
+    const uint16_t header_size = MAP_LOOKUP_CACHE_HEADER_SIZE;
+    const uint16_t entry_size = MAP_LOOKUP_CACHE_ENTRY_SIZE;
+    return static_cast<uint16_t>(header_size + (static_cast<uint16_t>(entry_count) * entry_size));
 }
 
 StoredMap* get_map(uint8_t map_id) {
@@ -158,7 +165,7 @@ kwp_result_t MapEditor::read_map_lookup_cache(uint8_t map_id, uint16_t *dest_siz
     LookupCacheReadEntry entries[MAX_LOOKUP_CACHE] = {};
     ptr->copy_lookup_cache(&entry_count, entries, MAX_LOOKUP_CACHE, now, MAP_LOOKUP_CACHE_MAX_AGE_MS);
 
-    uint16_t size = static_cast<uint16_t>(MAP_LOOKUP_CACHE_HEADER_SIZE + (entry_count * MAP_LOOKUP_CACHE_ENTRY_SIZE));
+    const uint16_t size = lookup_cache_payload_size(entry_count);
     uint8_t* b = static_cast<uint8_t*>(TCU_HEAP_ALLOC(size));
     if (nullptr == b) {
         return NRC_UN52_NO_MEM;
