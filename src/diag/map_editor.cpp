@@ -9,21 +9,26 @@
 #include "gearbox.h"
 #include "tcu_alloc.h"
 #include "clock.hpp"
+#include <limits>
 
 static_assert(sizeof(float) == 4u, "Map lookup cache wire format requires 32-bit floats");
+static_assert(std::numeric_limits<float>::is_iec559, "Map lookup cache wire format requires IEEE 754 floats");
+static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "Map lookup cache wire format requires a little-endian target");
 static_assert(MAP_LOOKUP_CACHE_ENTRY_SIZE == 13u, "Map lookup cache wire entry size must stay 13 bytes");
 static const uint16_t MAP_LOOKUP_CACHE_HEADER_SIZE = 4u;
 static const uint32_t MAP_LOOKUP_CACHE_MAX_AGE_MS = 60000u;
-
-static void write_float_le(uint8_t* dest, float value) {
-    memcpy(dest, &value, sizeof(value));
-}
 
 static void write_u32_le(uint8_t* dest, uint32_t value) {
     dest[0] = static_cast<uint8_t>(value & 0x000000FFu);
     dest[1] = static_cast<uint8_t>((value >> 8u) & 0x000000FFu);
     dest[2] = static_cast<uint8_t>((value >> 16u) & 0x000000FFu);
     dest[3] = static_cast<uint8_t>((value >> 24u) & 0x000000FFu);
+}
+
+static void write_f32_le(uint8_t* dest, float value) {
+    uint32_t raw = 0u;
+    memcpy(&raw, &value, sizeof(raw));
+    write_u32_le(dest, raw);
 }
 
 StoredMap* get_map(uint8_t map_id) {
@@ -169,8 +174,8 @@ kwp_result_t MapEditor::read_map_lookup_cache(uint8_t map_id, uint16_t *dest_siz
         const LookupCacheReadEntry& wire_entry = entries[i];
         const LookupCache& entry = wire_entry.cache;
         dest[0] = wire_entry.slot_id;
-        write_float_le(&dest[1], entry.x_val);
-        write_float_le(&dest[5], entry.y_val);
+        write_f32_le(&dest[1], entry.x_val);
+        write_f32_le(&dest[5], entry.y_val);
         write_u32_le(&dest[9], entry.timestamp_ms);
         dest += MAP_LOOKUP_CACHE_ENTRY_SIZE;
     }
