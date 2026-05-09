@@ -35,7 +35,7 @@ class LookupMap {
         uint16_t yHeaderSize;
     private:
         void record_lookup_cache(const float xValue, const float yValue, uint8_t cache_idx);
-        void copy_lookup_cache_snapshot(LookupCache *snapshot, uint8_t snapshot_count) const;
+        void copy_lookup_cache_snapshot(LookupCache *snapshot) const;
         void clear_lookup_cache_locked(void);
 
         LookupCache lookup_cache[MAX_LOOKUP_CACHE] = {};
