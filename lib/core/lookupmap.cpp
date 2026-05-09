@@ -28,14 +28,13 @@ void LookupMap::record_lookup_cache(const float xValue, const float yValue, uint
     portEXIT_CRITICAL(&this->lookup_cache_mutex);
 }
 
-void LookupMap::copy_lookup_cache_snapshot(LookupCache *snapshot, uint8_t snapshot_count) const
+void LookupMap::copy_lookup_cache_snapshot(LookupCache *snapshot) const
 {
-    if ((snapshot == nullptr) || (snapshot_count == 0u)) {
+    if (snapshot == nullptr) {
         return;
     }
-    const uint8_t count = snapshot_count < MAX_LOOKUP_CACHE ? snapshot_count : MAX_LOOKUP_CACHE;
     portENTER_CRITICAL(&this->lookup_cache_mutex);
-    for (uint8_t i = 0; i < count; i++) {
+    for (uint8_t i = 0; i < MAX_LOOKUP_CACHE; i++) {
         snapshot[i] = this->lookup_cache[i];
     }
     portEXIT_CRITICAL(&this->lookup_cache_mutex);
@@ -120,7 +119,7 @@ void LookupMap::copy_lookup_cache(uint8_t *entry_count, LookupCacheReadEntry *en
         return;
     }
     LookupCache snapshot[MAX_LOOKUP_CACHE] = {};
-    this->copy_lookup_cache_snapshot(snapshot, MAX_LOOKUP_CACHE);
+    this->copy_lookup_cache_snapshot(snapshot);
 
     uint8_t used_count = 0u;
     for (uint8_t i = 0; i < MAX_LOOKUP_CACHE; i++) {
